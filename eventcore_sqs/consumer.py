@@ -1,7 +1,10 @@
 import boto3
+import logging
 import json
 
 from eventcore import Consumer
+
+log = logging.getLogger(__name__)
 
 
 class SQSConsumer(Consumer):
@@ -19,11 +22,16 @@ class SQSConsumer(Consumer):
     def consume(self):
         while True:
             for message in self.queue.receive_messages(MaxNumberOfMessages=10):
-                message_body = json.loads(message.body)
-                self.process_event(name=message_body.get('event'),
-                                   subject=message_body.get('subject'),
-                                   data=message_body.get('data'))
-                self.queue.delete_messages(Entries=[{
-                    'Id': message.message_id,
-                    'ReceiptHandle': message.receipt_handle
-                }])
+                try:
+                    message_body = json.loads(message.body)
+                    self.process_event(name=message_body.get('event'),
+                                       subject=message_body.get('subject'),
+                                       data=message_body.get('data'))
+                    self.queue.delete_messages(Entries=[{
+                        'Id': message.message_id,
+                        'ReceiptHandle': message.receipt_handle
+                    }])
+                except:
+                    log.error('@SQSConsumer.consume Exception:',
+                              exc_info=True)
+                    continue
